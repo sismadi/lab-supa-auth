@@ -119,6 +119,64 @@ const logoutBtn = document.getElementById('logout');
 
 loadFiles(user); // ← ini juga masuk ke sini
 
+      uploadAvatarBtn.onclick = async () => {
+  const file = document.getElementById('avatar').files[0];
+  if (!file) {
+    status.textContent = '❌ Pilih file foto dulu.';
+    return;
+  }
+
+  const filePath = `${user.id}/${file.name}`;
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) {
+    status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
+    return;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  const avatar_url = urlData.publicUrl;
+
+  updateAvatar(avatar_url);
+
+  // Update URL avatar di profil
+  const { error: saveError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: user.id,
+      avatar_url
+    });
+
+  status.textContent = saveError
+    ? '❌ Gagal update avatar'
+    : '✅ Foto profil diperbarui';
+};
+
+uploadExtraBtn.onclick = async () => {
+  const file = extraFileInput.files[0];
+  if (!file) {
+    status.textContent = '❌ Pilih file terlebih dahulu.';
+    return;
+  }
+
+  const filePath = `${user.id}/${file.name}`;
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (error) {
+    status.textContent = '❌ Gagal upload file: ' + error.message;
+  } else {
+    status.textContent = '✅ File berhasil diupload';
+    loadFiles(user);
+  }
+};
+      
       document.getElementById('save').onclick = async () => {
         const name = document.getElementById('name').value;
         const address = document.getElementById('address').value;
@@ -220,63 +278,7 @@ async function loadFiles(user) {
     tbody.appendChild(tr);
   });
 }
-uploadAvatarBtn.onclick = async () => {
-  const file = document.getElementById('avatar').files[0];
-  if (!file) {
-    status.textContent = '❌ Pilih file foto dulu.';
-    return;
-  }
 
-  const filePath = `${user.id}/${file.name}`;
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, { upsert: true });
-
-  if (uploadError) {
-    status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
-    return;
-  }
-
-  const { data: urlData } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(filePath);
-
-  const avatar_url = urlData.publicUrl;
-
-  updateAvatar(avatar_url);
-
-  // Update URL avatar di profil
-  const { error: saveError } = await supabase
-    .from('profiles')
-    .upsert({
-      id: user.id,
-      avatar_url
-    });
-
-  status.textContent = saveError
-    ? '❌ Gagal update avatar'
-    : '✅ Foto profil diperbarui';
-};
-
-uploadExtraBtn.onclick = async () => {
-  const file = extraFileInput.files[0];
-  if (!file) {
-    status.textContent = '❌ Pilih file terlebih dahulu.';
-    return;
-  }
-
-  const filePath = `${user.id}/${file.name}`;
-  const { error } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, { upsert: true });
-
-  if (error) {
-    status.textContent = '❌ Gagal upload file: ' + error.message;
-  } else {
-    status.textContent = '✅ File berhasil diupload';
-    loadFiles(user);
-  }
-};
 logoutBtn.onclick = async () => {
   await supabase.auth.signOut();
   location.reload();
