@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Profil Pengguna</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 30px auto; }
+    input, button, textarea { width: 100%; margin: 10px 0; padding: 8px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>Login Supabase + Lengkapi Profil</h2>
+
+  <div id="login">
+    <button id="google-login">Login dengan Google</button>
+  </div>
+
+  <div id="profile" class="hidden">
+    <p id="user-email"></p>
+    <input type="text" id="name" placeholder="Nama lengkap" />
+    <textarea id="address" placeholder="Alamat"></textarea>
+    <input type="text" id="phone" placeholder="Nomor Telepon" />
+    <input type="file" id="avatar" />
+    <button id="save">Simpan Profil</button>
+    <p id="status"></p>
+  </div>
+
+  <script>
+const SUPABASE_URL = 'https://zligkbkrxqqbetnwykrq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWdrYmtyeHFxYmV0bnd5a3JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNjM2ODUsImV4cCI6MjA2NDgzOTY4NX0.kDK8_c6qCKKRax4HbHwEbAMwTavhDRWdgqkDtjWWYD8';
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const loginDiv = document.getElementById('login');
+    const profileDiv = document.getElementById('profile');
+    const googleBtn = document.getElementById('google-login');
+    const userEmail = document.getElementById('user-email');
+    const status = document.getElementById('status');
+
+    // Cek session login
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        showProfile(session.user);
+      }
+    });
+
+    // Login Google
+    googleBtn.onclick = async () => {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: location.href
+        }
+      });
+    };
+
+    async function showProfile(user) {
+      loginDiv.classList.add('hidden');
+      profileDiv.classList.remove('hidden');
+      userEmail.textContent = 'Login sebagai: ' + user.email;
+
+      // Muat data profil jika sudah ada
+      const { data: existing, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (existing) {
+        document.getElementById('name').value = existing.name || '';
+        document.getElementById('address').value = existing.address || '';
+        document.getElementById('phone').value = existing.phone || '';
+      }
+
+      document.getElementById('save').onclick = async () => {
+        const name = document.getElementById('name').value;
+        const address = document.getElementById('address').value;
+        const phone = document.getElementById('phone').value;
+        const file = document.getElementById('avatar').files[0];
+
+        let avatar_url = null;
+
+        if (file) {
+          const filePath = `${user.id}/${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('avatars') // <-- nama bucket storage
+            .upload(filePath, file, { upsert: true });
+
+          if (uploadError) {
+            status.textContent = '❌ Gagal upload file: ' + uploadError.message;
+            return;
+          }
+
+          const { data: urlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          avatar_url = urlData.publicUrl;
+        }
+
+        const { error: saveError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            name,
+            address,
+            phone,
+            avatar_url
+          });
+
+        status.textContent = saveError
+          ? '❌ Gagal simpan: ' + saveError.message
+          : '✅ Profil berhasil disimpan';
+      };
+    }
+  </script>
+</body>
+</html>
