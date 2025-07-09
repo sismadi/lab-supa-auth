@@ -27,17 +27,21 @@
   <div id="message"></div>
 
   <script>
-    // Ganti dengan project Anda
-    const SUPABASE_URL = 'https://zligkbkrxqqbetnwykrq.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWdrYmtyeHFxYmV0bnd5a3JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNjM2ODUsImV4cCI6MjA2NDgzOTY4NX0.kDK8_c6qCKKRax4HbHwEbAMwTavhDRWdgqkDtjWWYD8';
+    // ✅ Ganti dengan project Anda
+    const SUPABASE_URL = 'https://xxxx.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key';
+    
+const SUPABASE_URL = 'https://zligkbkrxqqbetnwykrq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWdrYmtyeHFxYmV0bnd5a3JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNjM2ODUsImV4cCI6MjA2NDgzOTY4NX0.kDK8_c6qCKKRax4HbHwEbAMwTavhDRWdgqkDtjWWYD8';
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // ✅ Inisialisasi Supabase dengan benar
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const form = document.getElementById('signup-form');
     const googleBtn = document.getElementById('google-login');
     const message = document.getElementById('message');
 
-    // Daftar dengan email manual
+    // 🔐 Daftar manual
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('email').value;
@@ -52,7 +56,7 @@
       }
     });
 
-    // Login / daftar dengan Google
+    // 🔐 Login via Google
     googleBtn.addEventListener('click', async () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
