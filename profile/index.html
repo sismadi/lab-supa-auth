@@ -12,6 +12,22 @@
 </head>
 <body>
   <h2>Login Supabase + Lengkapi Profil</h2>
+<hr />
+<h3>Avatar Saat Ini</h3>
+<img id="avatar-preview" src="" alt="Avatar" width="150" />
+
+<hr />
+<h3>File Anda</h3>
+<table border="1" width="100%">
+  <thead>
+    <tr>
+      <th>Nama File</th>
+      <th>Lihat</th>
+      <th>Hapus</th>
+    </tr>
+  </thead>
+  <tbody id="file-list"></tbody>
+</table>
 
   <div id="login">
     <button id="google-login">Login dengan Google</button>
@@ -113,8 +129,73 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         status.textContent = saveError
           ? '❌ Gagal simpan: ' + saveError.message
           : '✅ Profil berhasil disimpan';
+
+        updateAvatar(avatar_url);
+loadFiles(user);
+
+        
       };
     }
+
+    // Tampilkan avatar
+function updateAvatar(url) {
+  document.getElementById('avatar-preview').src = url;
+}
+
+// Load daftar file dari storage
+async function loadFiles(user) {
+  const { data: files, error } = await supabase
+    .storage
+    .from('avatars')
+    .list(user.id + '/', { limit: 100 });
+
+  const tbody = document.getElementById('file-list');
+  tbody.innerHTML = '';
+
+  if (error) {
+    tbody.innerHTML = '<tr><td colspan="3">❌ Gagal memuat file</td></tr>';
+    return;
+  }
+
+  files.forEach(file => {
+    const tr = document.createElement('tr');
+
+    const fileName = document.createElement('td');
+    fileName.textContent = file.name;
+
+    const viewLink = document.createElement('td');
+    const link = document.createElement('a');
+    link.href = supabase.storage
+      .from('avatars')
+      .getPublicUrl(`${user.id}/${file.name}`).data.publicUrl;
+    link.textContent = '🔗 Lihat';
+    link.target = '_blank';
+    viewLink.appendChild(link);
+
+    const deleteBtn = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.textContent = '🗑️ Hapus';
+    btn.onclick = async () => {
+      const { error } = await supabase.storage
+        .from('avatars')
+        .remove([`${user.id}/${file.name}`]);
+      if (!error) {
+        loadFiles(user); // refresh
+      }
+    };
+    deleteBtn.appendChild(btn);
+
+    tr.appendChild(fileName);
+    tr.appendChild(viewLink);
+    tr.appendChild(deleteBtn);
+    tbody.appendChild(tr);
+  });
+}
+
+    loadFiles(user);
+if (existing?.avatar_url) updateAvatar(existing.avatar_url);
+
+    
   </script>
 </body>
 </html>
