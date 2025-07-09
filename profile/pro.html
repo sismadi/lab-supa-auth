@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Profil Pengguna</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 30px auto; }
+    input, button, textarea { width: 100%; margin: 10px 0; padding: 8px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>Login Supabase + Lengkapi Profil</h2>
+
+  <div id="login">
+    <button id="google-login">Login dengan Google</button>
+  </div>
+
+  <div id="profile" class="hidden">
+    <p id="user-email"></p>
+
+    <h3>Foto Profil</h3>
+    <input type="file" id="avatar" />
+    <button id="upload-avatar">📷 Upload Foto Profil</button>
+    <img id="avatar-preview" src="" alt="Avatar" width="150" />
+
+    <h3>Data Profil</h3>
+    <input type="text" id="name" placeholder="Nama lengkap" />
+    <textarea id="address" placeholder="Alamat"></textarea>
+    <input type="text" id="phone" placeholder="Nomor Telepon" />
+    <button id="save">💾 Simpan Profil</button>
+
+    <h3>File Tambahan</h3>
+    <input type="file" id="extra-file" />
+    <button id="upload-extra">📁 Upload File</button>
+
+    <h3>File Anda</h3>
+    <table border="1" width="100%">
+      <thead>
+        <tr>
+          <th>Nama File</th>
+          <th>Lihat</th>
+          <th>Hapus</th>
+        </tr>
+      </thead>
+      <tbody id="file-list"></tbody>
+    </table>
+
+    <button id="logout">🚪 Logout</button>
+    <p id="status"></p>
+  </div>
+
+  <script>
+ 
+    const SUPABASE_URL = 'https://zligkbkrxqqbetnwykrq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWdrYmtyeHFxYmV0bnd5a3JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNjM2ODUsImV4cCI6MjA2NDgzOTY4NX0.kDK8_c6qCKKRax4HbHwEbAMwTavhDRWdgqkDtjWWYD8';
+
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const loginDiv = document.getElementById('login');
+    const profileDiv = document.getElementById('profile');
+    const googleBtn = document.getElementById('google-login');
+    const logoutBtn = document.getElementById('logout');
+    const status = document.getElementById('status');
+
+    const uploadAvatarBtn = document.getElementById('upload-avatar');
+    const uploadExtraBtn = document.getElementById('upload-extra');
+
+    const userEmail = document.getElementById('user-email');
+    const avatarInput = document.getElementById('avatar');
+    const avatarPreview = document.getElementById('avatar-preview');
+    const nameInput = document.getElementById('name');
+    const addressInput = document.getElementById('address');
+    const phoneInput = document.getElementById('phone');
+    const extraFileInput = document.getElementById('extra-file');
+
+    let currentUser = null;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        showProfile(session.user);
+      }
+    });
+
+    googleBtn.onclick = async () => {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: location.href }
+      });
+    };
+
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function showProfile(user) {
+      currentUser = user;
+      loginDiv.classList.add('hidden');
+      profileDiv.classList.remove('hidden');
+      userEmail.textContent = 'Login sebagai: ' + user.email;
+
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (existing) {
+        nameInput.value = existing.name || '';
+        addressInput.value = existing.address || '';
+        phoneInput.value = existing.phone || '';
+        if (existing.avatar_url) updateAvatar(existing.avatar_url);
+      }
+
+      loadFiles(user);
+    }
+
+    uploadAvatarBtn.onclick = async () => {
+      const file = avatarInput.files[0];
+      if (!file) return status.textContent = '❌ Pilih file foto dulu.';
+
+      const filePath = `${currentUser.id}/${file.name}`;
+      const { error: uploadError } = await supabase
+        .storage.from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) return status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const avatar_url = urlData.publicUrl;
+      updateAvatar(avatar_url);
+
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert({ id: currentUser.id, avatar_url });
+
+      status.textContent = saveError ? '❌ Gagal update avatar' : '✅ Foto profil diperbarui';
+    };
+
+    uploadExtraBtn.onclick = async () => {
+      const file = extraFileInput.files[0];
+      if (!file) return status.textContent = '❌ Pilih file terlebih dahulu.';
+
+      const filePath = `${currentUser.id}/${file.name}`;
+      const { error } = await supabase
+        .storage.from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      status.textContent = error
+        ? '❌ Gagal upload file: ' + error.message
+        : '✅ File berhasil diupload';
+
+      if (!error) loadFiles(currentUser);
+    };
+
+    document.getElementById('save').onclick = async () => {
+      const name = nameInput.value;
+      const address = addressInput.value;
+      const phone = phoneInput.value;
+
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          name,
+          address,
+          phone
+        });
+
+      status.textContent = saveError
+        ? '❌ Gagal simpan: ' + saveError.message
+        : '✅ Profil berhasil disimpan';
+    };
+
+    function updateAvatar(url) {
+      avatarPreview.src = url;
+    }
+
+    async function loadFiles(user) {
+      const { data: files, error } = await supabase
+        .storage.from('avatars')
+        .list(`${user.id}/`, { limit: 100 });
+
+      const tbody = document.getElementById('file-list');
+      tbody.innerHTML = '';
+
+      if (error) {
+        tbody.innerHTML = '<tr><td colspan="3">❌ Gagal memuat file</td></tr>';
+        return;
+      }
+
+      files.forEach(file => {
+        const tr = document.createElement('tr');
+
+        const fileName = document.createElement('td');
+        fileName.textContent = file.name;
+
+        const viewLink = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = supabase.storage
+          .from('avatars')
+          .getPublicUrl(`${user.id}/${file.name}`).data.publicUrl;
+        link.textContent = '🔗 Lihat';
+        link.target = '_blank';
+        viewLink.appendChild(link);
+
+        const deleteBtn = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = '🗑️ Hapus';
+        btn.onclick = async () => {
+          const { error } = await supabase
+            .storage.from('avatars')
+            .remove([`${user.id}/${file.name}`]);
+          if (!error) loadFiles(user);
+        };
+        deleteBtn.appendChild(btn);
+
+        tr.appendChild(fileName);
+        tr.appendChild(viewLink);
+        tr.appendChild(deleteBtn);
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
