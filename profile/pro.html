@@ -115,30 +115,44 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         if (existing.avatar_url) updateAvatar(existing.avatar_url);
       }
 
+      if (existing.avatar_url) {
+  console.log("load avatar", existing.avatar_url);
+  updateAvatar(existing.avatar_url);
+}
+
+      
       loadFiles(user);
     }
 
-    uploadAvatarBtn.onclick = async () => {
-      const file = avatarInput.files[0];
-      if (!file) return status.textContent = '❌ Pilih file foto dulu.';
+uploadAvatarBtn.onclick = async () => {
+  const file = avatarInput.files[0];
+  if (!file) return status.textContent = '❌ Pilih file foto dulu.';
 
-      const filePath = `${currentUser.id}/${file.name}`;
-      const { error: uploadError } = await supabase
-        .storage.from('avatars')
-        .upload(filePath, file, { upsert: true });
+  const filePath = `${currentUser.id}/${file.name}`;
+  const { error: uploadError } = await supabase
+    .storage.from('avatars')
+    .upload(filePath, file, { upsert: true });
 
-      if (uploadError) return status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
+  if (uploadError) return status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
 
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const avatar_url = urlData.publicUrl;
-      updateAvatar(avatar_url);
+  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  const avatar_url = urlData.publicUrl;
 
-      const { error: saveError } = await supabase
-        .from('profiles')
-        .upsert({ id: currentUser.id, avatar_url });
+  updateAvatar(avatar_url);
 
-      status.textContent = saveError ? '❌ Gagal update avatar' : '✅ Foto profil diperbarui';
-    };
+  const { error: saveError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: currentUser.id,
+      email: currentUser.email, // ✅ penting
+      avatar_url
+    });
+
+  status.textContent = saveError
+    ? '❌ Gagal update avatar'
+    : '✅ Foto profil diperbarui';
+};
+
 
     uploadExtraBtn.onclick = async () => {
       const file = extraFileInput.files[0];
