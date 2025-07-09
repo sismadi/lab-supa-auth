@@ -34,6 +34,20 @@
   </div>
 
   <div id="profile" class="hidden">
+
+    <h3>Foto Profil</h3>
+<input type="file" id="avatar" />
+<button id="upload-avatar">📷 Upload Foto Profil</button>
+
+<h3>File Tambahan</h3>
+<input type="file" id="extra-file" />
+<button id="upload-extra">📁 Upload File</button>
+
+<button id="save">💾 Simpan Profil</button>
+<button id="logout">🚪 Logout</button>
+<p id="status"></p>
+
+    
     <p id="user-email"></p>
     <input type="text" id="name" placeholder="Nama lengkap" />
     <textarea id="address" placeholder="Alamat"></textarea>
@@ -54,6 +68,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const googleBtn = document.getElementById('google-login');
     const userEmail = document.getElementById('user-email');
     const status = document.getElementById('status');
+
+    const uploadAvatarBtn = document.getElementById('upload-avatar');
+const uploadExtraBtn = document.getElementById('upload-extra');
+const extraFileInput = document.getElementById('extra-file');
+const logoutBtn = document.getElementById('logout');
+
+    
 
     // Cek session login
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -199,7 +220,67 @@ async function loadFiles(user) {
     tbody.appendChild(tr);
   });
 }
+uploadAvatarBtn.onclick = async () => {
+  const file = document.getElementById('avatar').files[0];
+  if (!file) {
+    status.textContent = '❌ Pilih file foto dulu.';
+    return;
+  }
 
+  const filePath = `${user.id}/${file.name}`;
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) {
+    status.textContent = '❌ Gagal upload avatar: ' + uploadError.message;
+    return;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  const avatar_url = urlData.publicUrl;
+
+  updateAvatar(avatar_url);
+
+  // Update URL avatar di profil
+  const { error: saveError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: user.id,
+      avatar_url
+    });
+
+  status.textContent = saveError
+    ? '❌ Gagal update avatar'
+    : '✅ Foto profil diperbarui';
+};
+
+uploadExtraBtn.onclick = async () => {
+  const file = extraFileInput.files[0];
+  if (!file) {
+    status.textContent = '❌ Pilih file terlebih dahulu.';
+    return;
+  }
+
+  const filePath = `${user.id}/${file.name}`;
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (error) {
+    status.textContent = '❌ Gagal upload file: ' + error.message;
+  } else {
+    status.textContent = '✅ File berhasil diupload';
+    loadFiles(user);
+  }
+};
+logoutBtn.onclick = async () => {
+  await supabase.auth.signOut();
+  location.reload();
+};
 
     
   </script>
