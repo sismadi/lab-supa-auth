@@ -85,6 +85,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         .single();
 
       if (existing) {
+
+            loadFiles(user);
+if (existing?.avatar_url) updateAvatar(existing.avatar_url);
+
+        
         document.getElementById('name').value = existing.name || '';
         document.getElementById('address').value = existing.address || '';
         document.getElementById('phone').value = existing.phone || '';
@@ -192,8 +197,6 @@ async function loadFiles(user) {
   });
 }
 
-    loadFiles(user);
-if (existing?.avatar_url) updateAvatar(existing.avatar_url);
 
     
   </script>
